@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Gerador - Acompanhamento Cargas (Retrato)</title>
+    
+    <!-- Google Fonts: Inter & Oswald -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- FontAwesome 6 Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- html2canvas for Screenshot & Image Download -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #001229;
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        .report-container {
+            width: 100%;
+            max-width: 480px;
+            min-height: 210mm;
+            background-color: #ffffff;
+            box-shadow: 0 20px 30px -10px rgba(0, 0, 0, 0.7);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            border-radius: 12px;
+            margin: 0 auto;
+            overflow: hidden; 
+            z-index: 1;
+        }
+
+        /* MARCA D'ÁGUA NO BACKGROUND AGORA VISÍVEL */
+        .report-watermark {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: url('image_7ac85d.png');
+            background-repeat: no-repeat;
+            background-position: center 55%;
+            background-size: 70%;
+            opacity: 0.12; /* Aumentado para aparecer melhor */
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        .content-layer {
+            position: relative;
+            z-index: 10;
+        }
+
+        .data-input {
+            background-color: #001229;
+            color: white;
+            font-family: 'Oswald', sans-serif;
+            font-size: 0.85rem;
+            font-weight: 700;
+            text-align: center;
+            border-radius: 9999px;
+            border: 2px solid transparent;
+            padding: 2px 6px;
+            width: 100%;
+            max-width: 95px;
+            outline: none;
+            transition: all 0.2s;
+        }
+        
+        .data-input:focus {
+            border-color: #66ccff;
+            background-color: #000a18;
+            box-shadow: 0 0 0 2px rgba(102, 204, 255, 0.3);
+        }
+
+        .data-input::placeholder {
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 0.75rem;
+        }
+
+        .status-select {
+            background-color: #ffffff;
+            color: #001229;
+            font-family: 'Oswald', sans-serif;
+            font-weight: 700;
+            font-size: 0.85rem;
+            border-radius: 9999px;
+            border: 2px solid #ffffff;
+            padding: 4px 28px 4px 12px;
+            outline: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            appearance: none;
+            -webkit-appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23001229'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2.5' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 8px center;
+            background-size: 14px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+        }
+
+        .status-select.reprovado-active {
+            background-color: #dc2626 !important;
+            color: #ffffff !important;
+            border-color: #f87171 !important;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23ffffff'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2.5' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+            box-shadow: 0 0 10px rgba(220, 38, 38, 0.6);
+        }
+
+        @media print {
+            @page { size: A4 portrait; margin: 0; }
+            body { background: none !important; }
+            .report-container { box-shadow: none !important; width: 148.5mm !important; height: auto !important; max-width: none !important; border-radius: 0 !important; page-break-after: always; }
+            .no-print { display: none !important; }
+            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+        }
+
+        .upload-icon { transition: all 0.3s ease; }
+        .photo-upload-zone:hover .upload-icon, .photo-upload-zone:active .upload-icon { transform: scale(1.15); color: #00a8ff; }
+    </style>
+</head>
+<body class="p-2 sm:p-6">
+
+    <!-- BARRAS DE FERRAMENTAS -->
+    <div class="no-print w-full max-w-[480px] mb-4 flex flex-wrap items-center justify-between gap-2 bg-slate-800/90 backdrop-blur-md p-2.5 rounded-2xl border border-slate-700 shadow-xl z-50">
+        <button onclick="window.print()" class="flex-1 flex items-center justify-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white font-semibold py-2 px-2.5 rounded-xl text-xs sm:text-sm shadow-md transition-all active:scale-95">
+            <i class="fa-solid fa-print"></i>
+            <span>PDF</span>
+        </button>
+
+        <button onclick="downloadScreenshot()" class="flex-1 flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-2 px-2.5 rounded-xl text-xs sm:text-sm shadow-md transition-all active:scale-95">
+            <i class="fa-solid fa-download"></i>
+            <span>Baixar</span>
+        </button>
+
+        <button onclick="copyToClipboard()" class="flex-1 flex items-center justify-center gap-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-2 px-2.5 rounded-xl text-xs sm:text-sm shadow-md transition-all active:scale-95">
+            <i class="fa-solid fa-copy"></i>
+            <span>Copiar + Compartilhar</span>
+        </button>
+        
+        <button id="btnShare" onclick="shareImage()" class="hidden flex-1 items-center justify-center gap-1.5 bg-green-500 hover:bg-green-400 text-white font-semibold py-2 px-2.5 rounded-xl text-xs sm:text-sm shadow-md transition-all active:scale-95">
+            <i class="fa-solid fa-share-nodes"></i>
+            <span>Compartilhar</span>
+        </button>
+
+        <button onclick="resetAllFields()" title="Limpar Campos" class="flex items-center justify-center bg-slate-700 hover:bg-red-600 text-slate-300 hover:text-white p-2 rounded-xl text-xs sm:text-sm shadow-md transition-all active:scale-95">
+            <i class="fa-solid fa-rotate-right"></i>
+        </button>
+    </div>
+
+    <!-- MENSAGEM FLUTUANTE (TOAST) -->
+    <div id="toast" class="no-print fixed top-4 left-1/2 transform -translate-x-1/2 -translate-y-24 transition-all duration-300 z-50 bg-slate-900 text-white text-xs font-semibold px-4 py-2.5 rounded-full shadow-2xl border border-slate-700 flex items-center gap-2 pointer-events-none">
+        <i id="toastIcon" class="fa-solid fa-circle-check text-emerald-400"></i>
+        <span id="toastMsg">Mensagem enviada com sucesso!</span>
+    </div>
+
+    <!-- MODAL DE ORIGEM DA FOTO -->
+    <div id="photoSourceModal" class="hidden no-print fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4" onclick="closePhotoSourceModal(event)">
+        <div class="w-full max-w-sm bg-white rounded-2xl shadow-2xl p-4 sm:p-5" onclick="event.stopPropagation()">
+            <div class="flex items-center justify-between mb-4">
+                <div>
+                    <h3 class="text-base sm:text-lg font-bold text-[#001229]">Adicionar foto</h3>
+                    <p class="text-xs sm:text-sm text-gray-500">Escolha como deseja adicionar a imagem.</p>
+                </div>
+                <button type="button" class="w-9 h-9 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 flex items-center justify-center" onclick="closePhotoSourceModal()">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <div class="grid grid-cols-1 gap-3">
+                <button type="button" onclick="capturePhotoFromCamera()" class="w-full flex items-center gap-3 p-3.5 rounded-xl border-2 border-blue-100 bg-blue-50 hover:bg-blue-100 active:scale-[0.99] transition-all text-left">
+                    <span class="w-11 h-11 rounded-full bg-blue-600 text-white flex items-center justify-center shrink-0">
+                        <i class="fa-solid fa-camera text-lg"></i>
+                    </span>
+                    <span class="flex flex-col">
+                        <span class="font-bold text-[#001229] text-sm">Usar câmera</span>
+                        <span class="text-xs text-gray-500">Tirar uma nova foto com o celular</span>
+                    </span>
+                </button>
+
+                <button type="button" onclick="choosePhotoFromFile()" class="w-full flex items-center gap-3 p-3.5 rounded-xl border-2 border-gray-200 bg-gray-50 hover:bg-gray-100 active:scale-[0.99] transition-all text-left">
+                    <span class="w-11 h-11 rounded-full bg-slate-700 text-white flex items-center justify-center shrink-0">
+                        <i class="fa-solid fa-folder-open text-lg"></i>
+                    </span>
+                    <span class="flex flex-col">
+                        <span class="font-bold text-[#001229] text-sm">Escolher arquivo</span>
+                        <span class="text-xs text-gray-500">Selecionar uma foto já salva no aparelho</span>
+                    </span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- CONTAINER PRINCIPAL DO RELATÓRIO -->
+    <div id="reportContainer" class="report-container bg-[#f8fafc]">
+        
+        <!-- ELEMENTO DE MARCA D'ÁGUA -->
+        <div class="report-watermark"></div>
+        
+        <!-- CABEÇALHO -->
+        <div style="background: linear-gradient(110deg, #001229 0%, #001229 55%, #006099 55%, #006099 68%, #0088cc 68%, #0088cc 100%);" class="content-layer py-3 flex items-start justify-between px-3 sm:px-5 shrink-0 rounded-t-xl shadow-md">
+            
+            <div class="flex flex-col items-start w-full">
+                <!-- LOGOMARCA AUMENTADA (Cobre da ponta do caminhão ao fim do texto) -->
+                <img src="image_7ac85d.png" alt="Logo" class="w-[210px] sm:w-[240px] h-auto object-contain mb-2 object-left" 
+                     onerror="this.style.display='none'; document.getElementById('logo-fallback').style.display='block';">
+                
+                <span id="logo-fallback" class="hidden text-white font-bold tracking-widest text-lg sm:text-xl mb-2" style="font-family: 'Oswald', sans-serif;">
+                    M. DIAS BRANCO
+                </span>
+                
+                <div class="flex items-center gap-2 sm:gap-2.5">
+                    <i class="fa-solid fa-truck-fast text-2xl sm:text-3xl text-white"></i>
+                    <div class="flex flex-col justify-center mt-0.5">
+                        <h2 style="font-family: 'Oswald', sans-serif;" class="text-[10px] sm:text-xs text-white m-0 leading-none tracking-widest font-medium">ACOMPANHAMENTO <span class="text-blue-300">&gt;&gt;</span></h2>
+                        <h1 style="font-family: 'Oswald', sans-serif;" class="text-xl sm:text-2xl text-[#66ccff] m-0 leading-none font-bold tracking-wide -mt-0.5">CARGAS</h1>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mr-1 sm:mr-3 mt-4">
+                <select id="vehicleStatus" onchange="updateStatusColor(this)" class="status-select uppercase tracking-wider">
+                    <option value="" class="bg-white text-[#001229]">Veículo</option>
+                    <option value="Aprovado" class="bg-white text-[#001229]">Aprovado</option>
+                    <option value="Reprovado" class="bg-red-600 text-white font-bold">Reprovado</option>
+                    <option value="Carregado" class="bg-white text-[#001229]">Carregado</option>
+                </select>
+            </div>
+
+        </div>
+
+        <!-- BARRA DE INFORMAÇÕES (COM TRANSPARÊNCIA PARA MOSTRAR A MARCA D'ÁGUA) -->
+        <div class="content-layer py-3 bg-white/70 border-b-2 border-gray-200 flex justify-around items-center px-1 shrink-0 shadow-sm backdrop-blur-sm">
+            
+            <div class="flex items-center gap-1 min-w-0">
+                <div class="w-7 h-7 sm:w-8 sm:h-8 border-2 border-[#001229] rounded-full flex justify-center items-center shrink-0 bg-white/80">
+                    <i class="fa-solid fa-clipboard-check text-[10px] sm:text-xs text-[#001229]"></i>
+                </div>
+                <div class="flex flex-col min-w-0 items-center sm:items-start">
+                    <span class="text-[9px] sm:text-[10px] font-bold text-gray-800 mb-0.5">Remessa:</span>
+                    <input type="text" class="data-input shadow-sm" placeholder="Nº">
+                </div>
+            </div>
+
+            <div class="h-6 w-[1px] bg-gray-300 shrink-0"></div>
+
+            <div class="flex items-center gap-1 min-w-0">
+                <div class="w-7 h-7 sm:w-8 sm:h-8 border-2 border-[#001229] bg-[#001229] rounded-full flex justify-center items-center shrink-0">
+                    <i class="fa-solid fa-user text-[10px] sm:text-xs text-white"></i>
+                </div>
+                <div class="flex flex-col min-w-0 items-center sm:items-start">
+                    <span class="text-[9px] sm:text-[10px] font-bold text-gray-800 mb-0.5">Cliente/Cidade:</span>
+                    <input type="text" class="data-input shadow-sm" placeholder="Nome">
+                </div>
+            </div>
+
+            <div class="h-6 w-[1px] bg-gray-300 shrink-0"></div>
+
+            <div class="flex items-center gap-1 min-w-0">
+                <div class="w-7 h-7 sm:w-8 sm:h-8 border-2 border-[#001229] rounded-full flex justify-center items-center shrink-0 bg-white/80">
+                    <i class="fa-solid fa-car-side text-[10px] sm:text-xs text-[#001229]"></i>
+                </div>
+                <div class="flex flex-col min-w-0 items-center sm:items-start">
+                    <span class="text-[9px] sm:text-[10px] font-bold text-gray-800 mb-0.5">Placa:</span>
+                    <input type="text" class="data-input shadow-sm" placeholder="Placa" style="text-transform: uppercase;">
+                </div>
+            </div>
+
+        </div>
+
+        <!-- CORPO PRINCIPAL COM FOTOS E OBSERVAÇÃO -->
+        <div class="content-layer flex-grow p-2.5 sm:p-3 flex flex-col items-center justify-start bg-transparent gap-2">
+            <!-- Camada semi-transparente no fundo do bloco de fotos para melhorar contraste sem tampar a marca d'água -->
+            <div class="w-full h-[280px] sm:h-[350px] border-[3px] border-[#001229] rounded-xl p-1.5 sm:p-2 bg-white/80 backdrop-blur-[2px] grid grid-cols-2 grid-rows-2 gap-1.5 sm:gap-2 shadow-inner">
+                
+                <div onclick="triggerFileInput('file1')" class="photo-upload-zone relative cursor-pointer flex flex-col items-center justify-center rounded-lg bg-gray-50/90 border-2 border-dashed border-gray-400 hover:border-blue-500 overflow-hidden group h-full w-full transition-colors">
+                    <input type="file" id="file1" class="hidden" accept="image/*" onchange="loadImage(event, 'img1', 'placeholder1', 'remove-img1')">
+                    <div id="placeholder1" class="flex flex-col items-center z-10 pointer-events-none p-1 text-center">
+                        <i class="fa-solid fa-camera text-xl sm:text-2xl text-gray-400 mb-1 upload-icon"></i>
+                        <span class="text-gray-500 font-semibold text-[9px] sm:text-[10px]">Clique para Foto 1</span>
+                    </div>
+                    <img id="img1" class="absolute inset-0 w-full h-full object-cover hidden z-20" alt="Foto 1">
+                    <button type="button" class="remove-btn no-print absolute top-1 right-1 z-30 hidden bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs shadow-md hover:bg-red-600 transition-transform active:scale-90" id="remove-img1" onclick="removeImage(event, 'img1', 'placeholder1', 'remove-img1', 'file1')">
+                        <i class="fa-solid fa-trash-can"></i>
+                    </button>
+                </div>
+                
+                <div onclick="triggerFileInput('file2')" class="photo-upload-zone relative cursor-pointer flex flex-col items-center justify-center rounded-lg bg-gray-50/90 border-2 border-dashed border-gray-400 hover:border-blue-500 overflow-hidden group h-full w-full transition-colors">
+                    <input type="file" id="file2" class="hidden" accept="image/*" onchange="loadImage(event, 'img2', 'placeholder2', 'remove-img2')">
+                    <div id="placeholder2" class="flex flex-col items-center z-10 pointer-events-none p-1 text-center">
+                        <i class="fa-solid fa-camera text-xl sm:text-2xl text-gray-400 mb-1 upload-icon"></i>
+                        <span class="text-gray-500 font-semibold text-[9px] sm:text-[10px]">Clique para Foto 2</span>
+                    </div>
+                    <img id="img2" class="absolute inset-0 w-full h-full object-cover hidden z-20" alt="Foto 2">
+                    <button type="button" class="remove-btn no-print absolute top-1 right-1 z-30 hidden bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs shadow-md hover:bg-red-600 transition-transform active:scale-90" id="remove-img2" onclick="removeImage(event, 'img2', 'placeholder2', 'remove-img2', 'file2')">
+                        <i class="fa-solid fa-trash-can"></i>
+                    </button>
+                </div>
+                
+                <div onclick="triggerFileInput('file3')" class="photo-upload-zone relative cursor-pointer flex flex-col items-center justify-center rounded-lg bg-gray-50/90 border-2 border-dashed border-gray-400 hover:border-blue-500 overflow-hidden group h-full w-full transition-colors">
+                    <input type="file" id="file3" class="hidden" accept="image/*" onchange="loadImage(event, 'img3', 'placeholder3', 'remove-img3')">
+                    <div id="placeholder3" class="flex flex-col items-center z-10 pointer-events-none p-1 text-center">
+                        <i class="fa-solid fa-camera text-xl sm:text-2xl text-gray-400 mb-1 upload-icon"></i>
+                        <span class="text-gray-500 font-semibold text-[9px] sm:text-[10px]">Clique para Foto 3</span>
+                    </div>
+                    <img id="img3" class="absolute inset-0 w-full h-full object-cover hidden z-20" alt="Foto 3">
+                    <button type="button" class="remove-btn no-print absolute top-1 right-1 z-30 hidden bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs shadow-md hover:bg-red-600 transition-transform active:scale-90" id="remove-img3" onclick="removeImage(event, 'img3', 'placeholder3', 'remove-img3', 'file3')">
+                        <i class="fa-solid fa-trash-can"></i>
+                    </button>
+                </div>
+                
+                <div onclick="triggerFileInput('file4')" class="photo-upload-zone relative cursor-pointer flex flex-col items-center justify-center rounded-lg bg-gray-50/90 border-2 border-dashed border-gray-400 hover:border-blue-500 overflow-hidden group h-full w-full transition-colors">
+                    <input type="file" id="file4" class="hidden" accept="image/*" onchange="loadImage(event, 'img4', 'placeholder4', 'remove-img4')">
+                    <div id="placeholder4" class="flex flex-col items-center z-10 pointer-events-none p-1 text-center">
+                        <i class="fa-solid fa-camera text-xl sm:text-2xl text-gray-400 mb-1 upload-icon"></i>
+                        <span class="text-gray-500 font-semibold text-[9px] sm:text-[10px]">Clique para Foto 4</span>
+                    </div>
+                    <img id="img4" class="absolute inset-0 w-full h-full object-cover hidden z-20" alt="Foto 4">
+                    <button type="button" class="remove-btn no-print absolute top-1 right-1 z-30 hidden bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs shadow-md hover:bg-red-600 transition-transform active:scale-90" id="remove-img4" onclick="removeImage(event, 'img4', 'placeholder4', 'remove-img4', 'file4')">
+                        <i class="fa-solid fa-trash-can"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- CAMPO OBSERVAÇÃO -->
+            <div class="w-full mt-1 flex flex-col bg-white/90 backdrop-blur-sm border-2 border-[#001229] rounded-xl p-2 shadow-sm z-10">
+                <label for="campo-obs" class="text-[#001229] font-bold mb-1 text-[11px] uppercase ml-1">Observação:</label>
+                <textarea id="campo-obs" rows="5" placeholder="Digite informações adicionais aqui..." class="w-full outline-none text-gray-800 bg-transparent resize-y" style="font-size: 12px; font-weight: 500;"></textarea>
+            </div>
+
+        </div>
+
+        <!-- RODAPÉ -->
+        <div style="background: linear-gradient(110deg, #001229 0%, #001229 80%, #006099 80%, #006099 89%, #0088cc 89%, #0088cc 100%);" class="content-layer py-3 flex items-center justify-between px-4 sm:px-5 shrink-0 rounded-b-xl shadow-md">
+            <div class="flex items-center gap-2.5 sm:gap-3">
+                <div class="text-[#66ccff] text-xl sm:text-2xl flex items-center justify-center">
+                    <i class="fa-solid fa-cube"></i>
+                </div>
+                <div class="h-6 w-[1.5px] bg-blue-300/30"></div>
+                <div class="flex flex-col justify-center leading-none">
+                    <span style="font-family: 'Oswald', sans-serif;" class="text-[9px] sm:text-[10px] font-semibold text-white tracking-widest uppercase">LOGÍSTICA QUE</span>
+                    <span style="font-family: 'Oswald', sans-serif;" class="text-[11px] sm:text-xs font-bold text-[#66ccff] tracking-wider uppercase mt-0.5">MOVE O SEU NEGÓCIO</span>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- SCRIPT DE FUNCIONAMENTO -->
+    <script>
+        let capturedBlob = null;
+        let activePhotoInputId = null;
+
+        function triggerFileInput(inputId) {
+            const input = document.getElementById(inputId);
+            if (!input) return;
+
+            activePhotoInputId = inputId;
+            const modal = document.getElementById('photoSourceModal');
+            if (modal) modal.classList.remove('hidden');
+        }
+
+        function closePhotoSourceModal(event) {
+            if (event && event.target !== event.currentTarget) return;
+
+            const modal = document.getElementById('photoSourceModal');
+            if (modal) modal.classList.add('hidden');
+        }
+
+        function choosePhotoFromFile() {
+            if (!activePhotoInputId) return;
+            const input = document.getElementById(activePhotoInputId);
+            closePhotoSourceModal();
+            if (input) input.click();
+        }
+
+        function capturePhotoFromCamera() {
+            if (!activePhotoInputId) return;
+
+            const slotInputId = activePhotoInputId;
+            closePhotoSourceModal();
+
+            const cameraInput = document.createElement('input');
+            cameraInput.type = 'file';
+            cameraInput.accept = 'image/*';
+            cameraInput.setAttribute('capture', 'environment');
+            cameraInput.className = 'hidden';
+
+            cameraInput.addEventListener('change', function(event) {
+                const file = event.target.files && event.target.files[0];
+                if (file) {
+                    loadImageFromFile(file, getPhotoTargetIds(slotInputId));
+                }
+                cameraInput.remove();
+            }, { once: true });
+
+            document.body.appendChild(cameraInput);
+            cameraInput.click();
+        }
+
+        function getPhotoTargetIds(fileInputId) {
+            const match = /^file(\\d+)$/.exec(fileInputId || '');
+            const number = match ? match[1] : '1';
+            return {
+                imgId: 'img' + number,
+                placeholderId: 'placeholder' + number,
+                removeBtnId: 'remove-img' + number
+            };
+        }
+
+        function updateStatusColor(selectEl) {
+            const val = selectEl.value;
+            if (val === 'Reprovado') {
+                selectEl.classList.add('reprovado-active');
+            } else {
+                selectEl.classList.remove('reprovado-active');
+            }
+        }
+
+        function loadImage(event, imgId, placeholderId, removeBtnId) {
+            const input = event.target;
+            if (input.files && input.files[0]) {
+                loadImageFromFile(input.files[0], { imgId, placeholderId, removeBtnId });
+            }
+        }
+
+        function loadImageFromFile(file, targets) {
+            if (!file || !file.type.startsWith('image/')) {
+                showToast('Selecione uma imagem válida.', 'fa-triangle-exclamation', 'text-red-400');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const imgElement = document.getElementById(targets.imgId);
+                const placeholderElement = document.getElementById(targets.placeholderId);
+                const removeBtn = document.getElementById(targets.removeBtnId);
+
+                if (!imgElement || !placeholderElement || !removeBtn) return;
+
+                imgElement.src = e.target.result;
+                imgElement.classList.remove('hidden');
+                placeholderElement.classList.add('hidden');
+                removeBtn.classList.remove('hidden');
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function removeImage(event, imgId, placeholderId, removeBtnId, fileInputId) {
+            event.preventDefault(); 
+            event.stopPropagation();
+            const imgElement = document.getElementById(imgId);
+            const placeholderElement = document.getElementById(placeholderId);
+            const removeBtn = document.getElementById(removeBtnId);
+            const fileInput = document.getElementById(fileInputId);
+            imgElement.src = "";
+            if (fileInput) fileInput.value = "";
+            imgElement.classList.add('hidden');
+            placeholderElement.classList.remove('hidden');
+            removeBtn.classList.add('hidden');
+        }
+
+        function resetAllFields() {
+            document.querySelectorAll('.data-input, #campo-obs').forEach(input => input.value = '');
+            const selectEl = document.getElementById('vehicleStatus');
+            selectEl.value = '';
+            updateStatusColor(selectEl);
+            ['file1', 'file2', 'file3', 'file4'].forEach((fileId, idx) => {
+                const num = idx + 1;
+                removeImage({ preventDefault: ()=>{}, stopPropagation: ()=>{} }, 'img' + num, 'placeholder' + num, 'remove-img' + num, fileId);
+            });
+            showToast('Todos os campos foram limpos.', 'fa-circle-check', 'text-emerald-400');
+            document.getElementById('btnShare').classList.add('hidden');
+            document.getElementById('btnShare').classList.remove('flex');
+        }
+
+        function toggleButtonsVisibility(visible) {
+            const removeBtns = document.querySelectorAll('.remove-btn');
+            removeBtns.forEach(btn => {
+                if (visible) {
+                    const card = btn.parentElement;
+                    const img = card.querySelector('img');
+                    if (img && !img.classList.contains('hidden')) {
+                        btn.style.display = 'flex';
+                    }
+                } else {
+                    btn.style.display = 'none';
+                }
+            });
+        }
+
+        async function captureReportImage() {
+            const container = document.getElementById('reportContainer');
+            if (!container) throw new Error('Área do relatório não encontrada.');
+
+            toggleButtonsVisibility(false);
+
+            try {
+                const canvas = await html2canvas(container, {
+                    scale: 3,
+                    useCORS: true,
+                    backgroundColor: '#ffffff',
+                    logging: false,
+                    x: 0,
+                    y: 0,
+                    width: container.scrollWidth,
+                    height: container.scrollHeight,
+                    windowWidth: Math.max(document.documentElement.clientWidth, container.scrollWidth),
+                    windowHeight: Math.max(document.documentElement.clientHeight, container.scrollHeight)
+                });
+
+                const blob = await new Promise((resolve, reject) => {
+                    canvas.toBlob((result) => {
+                        if (result) resolve(result);
+                        else reject(new Error('Não foi possível gerar a imagem.'));
+                    }, 'image/png');
+                });
+
+                if (!blob) throw new Error('Não foi possível gerar a imagem.');
+                capturedBlob = blob;
+                return blob;
+            } finally {
+                toggleButtonsVisibility(true);
+            }
+        }
+
+        function getReportFileName() {
+            const remessaInput = document.querySelector('.data-input[placeholder="Nº"]');
+            const remessa = remessaInput ? remessaInput.value.trim() : '';
+            return remessa ? `Informativo_Remessa_${remessa}.png` : 'Informativo_Cargas.png';
+        }
+
+        async function downloadScreenshot() {
+            showToast('Gerando imagem...', 'fa-spinner animate-spin', 'text-blue-400');
+
+            try {
+                const blob = await captureReportImage();
+                const link = document.createElement('a');
+                link.download = getReportFileName();
+                link.href = URL.createObjectURL(blob);
+                link.click();
+
+                setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+
+                showToast('Imagem baixada com sucesso!', 'fa-circle-check', 'text-emerald-400');
+                showShareButton();
+            } catch (err) {
+                console.error(err);
+                showToast('Erro ao capturar imagem.', 'fa-triangle-exclamation', 'text-red-400');
+            }
+        }
+
+        async function copyToClipboard() {
+            showToast('Gerando print...', 'fa-spinner animate-spin', 'text-indigo-400');
+
+            try {
+                const blob = await captureReportImage();
+                let copied = false;
+
+                if (navigator.clipboard && window.ClipboardItem && window.isSecureContext) {
+                    try {
+                        const item = new ClipboardItem({ 'image/png': blob });
+                        await navigator.clipboard.write([item]);
+                        copied = true;
+                    } catch (clipErr) {
+                        console.warn('Clipboard de imagem indisponível:', clipErr);
+                    }
+                }
+
+                if (copied) {
+                    showToast('Print copiado. Abrindo compartilhamento...', 'fa-circle-check', 'text-emerald-400');
+                } else {
+                    showToast('Print gerado. Abrindo compartilhamento...', 'fa-share-nodes', 'text-blue-400');
+                }
+
+                showShareButton();
+
+                // Tenta abrir imediatamente a folha nativa de compartilhamento.
+                // Se o navegador bloquear por falta de ativação do usuário, o botão
+                // "Compartilhar" permanece disponível para um novo toque.
+                const shared = await shareImageBlob(blob);
+                if (!shared) {
+                    showToast(
+                        copied
+                            ? 'Print copiado. Toque em Compartilhar para enviar.'
+                            : 'Print pronto. Toque em Compartilhar para enviar.',
+                        'fa-share-nodes',
+                        'text-blue-400'
+                    );
+                }
+            } catch (err) {
+                console.error(err);
+                showShareButton();
+                showToast('Falha ao gerar o print.', 'fa-triangle-exclamation', 'text-red-400');
+            }
+        }
+
+        function showShareButton() {
+            const btnShare = document.getElementById('btnShare');
+            if (!btnShare) return;
+            btnShare.classList.remove('hidden');
+            btnShare.classList.add('flex-1', 'flex');
+        }
+
+        async function shareImageBlob(blob) {
+            if (!blob || !navigator.share) return false;
+
+            const file = new File([blob], getReportFileName(), { type: 'image/png' });
+            const shareData = {
+                title: 'Informativo de Cargas',
+                files: [file]
+            };
+
+            try {
+                if (!navigator.canShare || navigator.canShare({ files: [file] })) {
+                    await navigator.share(shareData);
+                    return true;
+                }
+            } catch (err) {
+                if (err && (err.name === 'AbortError' || err.name === 'NotAllowedError')) {
+                    console.log('Compartilhamento cancelado ou bloqueado pelo navegador.', err);
+                } else {
+                    console.error('Falha no compartilhamento nativo:', err);
+                }
+            }
+
+            return false;
+        }
+
+        async function shareImage() {
+            if (!capturedBlob) {
+                showToast('Gere um print primeiro.', 'fa-circle-info', 'text-amber-400');
+                return;
+            }
+
+            const shared = await shareImageBlob(capturedBlob);
+            if (!shared) {
+                showToast(
+                    'O compartilhamento nativo não está disponível neste navegador. A imagem continua pronta para baixar.',
+                    'fa-triangle-exclamation',
+                    'text-red-400'
+                );
+            }
+        }
+
+        function showToast(msg, iconClass, iconColorClass) {
+            const toast = document.getElementById('toast');
+            const toastMsg = document.getElementById('toastMsg');
+            const toastIcon = document.getElementById('toastIcon');
+            toastMsg.innerText = msg;
+            toastIcon.className = `fa-solid ${iconClass} ${iconColorClass}`;
+            toast.classList.remove('-translate-y-24');
+            toast.classList.add('translate-y-0');
+            setTimeout(() => {
+                toast.classList.remove('translate-y-0');
+                toast.classList.add('-translate-y-24');
+            }, 3200);
+        }
+    </script>
+</body>
+</html>
